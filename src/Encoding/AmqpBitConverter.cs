@@ -258,6 +258,33 @@ namespace Microsoft.Azure.Amqp.Encoding
         }
 
         /// <summary>
+        /// Reads a char from a buffer.
+        /// </summary>
+        /// <param name="buffer">The input buffer.</param>
+        /// <returns>A char.</returns>
+        public static char ReadChar(ByteBuffer buffer)
+        {
+            int intValue = AmqpBitConverter.ReadInt(buffer);
+            string value = char.ConvertFromUtf32(intValue);
+            if (value.Length > 1)
+            {
+                throw new ArgumentOutOfRangeException(CommonResources.ErrorConvertingToChar);
+            }
+
+            return value[0];
+        }
+
+        /// <summary>
+        /// Reads a timestamp from a buffer.
+        /// </summary>
+        /// <param name="buffer">The input buffer.</param>
+        /// <returns>A timestamp.</returns>
+        public static DateTime ReadTimestamp(ByteBuffer buffer)
+        {
+            return TimeStampEncoding.ToDateTime(AmqpBitConverter.ReadLong(buffer));
+        }
+
+        /// <summary>
         /// Reads a uuid from a buffer.
         /// </summary>
         /// <param name="buffer">The input buffer.</param>
@@ -375,7 +402,13 @@ namespace Microsoft.Azure.Amqp.Encoding
         public static void WriteInt(ByteBuffer buffer, int data)
         {
             buffer.Validate(true, FixedWidth.Int);
-            fixed (byte* d = &buffer.Buffer[buffer.WritePos])
+            WriteInt(buffer.Buffer, buffer.WritePos, data);
+            buffer.Append(FixedWidth.Int);
+        }
+
+        internal static void WriteInt(byte[] buffer, int offset, int data)
+        {
+            fixed (byte* d = &buffer[offset])
             {
                 byte* p = (byte*)&data;
                 d[0] = p[3];
@@ -383,8 +416,6 @@ namespace Microsoft.Azure.Amqp.Encoding
                 d[2] = p[1];
                 d[3] = p[0];
             }
-
-            buffer.Append(FixedWidth.Int);
         }
 
         /// <summary>
@@ -516,6 +547,26 @@ namespace Microsoft.Azure.Amqp.Encoding
             }
 
             buffer.Append(FixedWidth.Double);
+        }
+
+        /// <summary>
+        /// Writes a char to a buffer.
+        /// </summary>
+        /// <param name="buffer">The buffer to write.</param>
+        /// <param name="data">The char.</param>
+        public static void WriteChar(ByteBuffer buffer, char data)
+        {
+            AmqpBitConverter.WriteInt(buffer, char.ConvertToUtf32(new string(data, 1), 0));
+        }
+
+        /// <summary>
+        /// Writes a timestamp to a buffer.
+        /// </summary>
+        /// <param name="buffer">The buffer to write.</param>
+        /// <param name="data">The timestamp.</param>
+        public static void WriteTimestamp(ByteBuffer buffer, DateTime data)
+        {
+            AmqpBitConverter.WriteLong(buffer, TimeStampEncoding.GetMilliseconds(data));
         }
 
         /// <summary>

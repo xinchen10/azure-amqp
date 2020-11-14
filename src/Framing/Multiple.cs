@@ -40,11 +40,11 @@ namespace Microsoft.Azure.Amqp.Framing
             }
             else if (multiple.Count == 1)
             {
-                return AmqpEncoding.GetObjectEncodeSize(multiple[0]);
+                return FixedWidth.FormatCode + ArrayEncoding.GetValueSize(multiple, 1, typeof(T));
             }
             else
             {
-                return ArrayEncoding.GetEncodeSize(multiple.ToArray());
+                return ArrayEncoding.GetEncodeSize(multiple, multiple.Count, typeof(T), false, out _);
             }
         }
 
@@ -56,36 +56,43 @@ namespace Microsoft.Azure.Amqp.Framing
             }
             else if (multiple.Count == 1)
             {
-                AmqpEncoding.EncodeObject(multiple[0], buffer);
+                ArrayEncoding.EncodeValue(multiple, multiple.Count, typeof(T), buffer);
             }
             else
             {
-                ArrayEncoding.Encode(multiple.ToArray(), buffer);
+                ArrayEncoding.Encode(multiple, multiple.Count, typeof(T), buffer);
             }
         }
 
         internal static Multiple<T> Decode(ByteBuffer buffer)
         {
-            object value = AmqpEncoding.DecodeObject(buffer);
-            if (value == null)
+            FormatCode formatCode = AmqpEncoding.ReadFormatCode(buffer);
+            if (formatCode == FormatCode.Null)
             {
                 return null;
             }
-            else if (value is T)
+
+            if (formatCode == FormatCode.Array8 || formatCode == FormatCode.Array32)
+            {
+                T[] array = ArrayEncoding.Decode<T>(buffer, formatCode);
+                return new Multiple<T>(array);
+            }
+
+            if (formatCode == FormatCode.Symbol8 || formatCode == FormatCode.Symbol32)
+            {
+                var symbol = SymbolEncoding.Decode(buffer, formatCode);
+                return new Multiple<AmqpSymbol>() { symbol } as Multiple<T>;
+            }
+
+            object value = AmqpEncoding.DecodeObject(buffer, formatCode);
+            if (value is T)
             {
                 Multiple<T> multiple = new Multiple<T>();
                 multiple.Add((T)value);
                 return multiple;
             }
-            else if (value.GetType().IsArray)
-            {
-                Multiple<T> multiple = new Multiple<T>((T[])value);
-                return multiple;
-            }
-            else
-            {
-                throw new AmqpException(AmqpErrorCode.InvalidField, null);
-            }
+
+            throw new AmqpException(AmqpErrorCode.InvalidField, $"The expected type is '{typeof(T).Name}' but got '{value.GetType().Name}'");
         }
 
         /// <summary>

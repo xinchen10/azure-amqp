@@ -24,7 +24,7 @@ namespace Microsoft.Azure.Amqp.Encoding
             if (value.HasValue)
             {
                 AmqpBitConverter.WriteUByte(buffer, FormatCode.TimeStamp);
-                AmqpBitConverter.WriteLong(buffer, TimeStampEncoding.GetMilliseconds(value.Value));
+                AmqpBitConverter.WriteTimestamp(buffer, value.Value);
             }
             else
             {
@@ -39,7 +39,7 @@ namespace Microsoft.Azure.Amqp.Encoding
                 return null;
             }
 
-            return ToDateTime(AmqpBitConverter.ReadLong(buffer));
+            return AmqpBitConverter.ReadTimestamp(buffer);
         }
 
         public override int GetObjectEncodeSize(object value, bool arrayEncoding)

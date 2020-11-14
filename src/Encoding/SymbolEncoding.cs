@@ -4,6 +4,7 @@
 namespace Microsoft.Azure.Amqp.Encoding
 {
     using System.Text;
+    using Microsoft.Azure.Amqp.Framing;
 
     sealed class SymbolEncoding : EncodingBase
     {
@@ -36,10 +37,8 @@ namespace Microsoft.Azure.Amqp.Encoding
             }
             else
             {
-                byte[] encodedData = Encoding.ASCII.GetBytes(value.Value);
-                int encodeWidth = AmqpEncoding.GetEncodeWidthBySize(encodedData.Length);
-                AmqpBitConverter.WriteUByte(buffer, encodeWidth == FixedWidth.UByte ? FormatCode.Symbol8 : FormatCode.Symbol32);
-                SymbolEncoding.Encode(encodedData, encodeWidth, buffer);
+                int width = AmqpEncoding.GetEncodeWidthBySize(value.Value.Length);
+                Encode(value, width == FixedWidth.UByte ? FormatCode.Symbol8 : FormatCode.Symbol32, buffer);
             }
         }
 
@@ -74,7 +73,7 @@ namespace Microsoft.Azure.Amqp.Encoding
         {
             if (arrayEncoding)
             {
-                SymbolEncoding.Encode(Encoding.ASCII.GetBytes(((AmqpSymbol)value).Value), FixedWidth.UInt, buffer);
+                SymbolEncoding.Encode((AmqpSymbol)value, FixedWidth.UInt, buffer);
             }
             else
             {
@@ -87,18 +86,36 @@ namespace Microsoft.Azure.Amqp.Encoding
             return SymbolEncoding.Decode(buffer, formatCode);
         }
 
-        static void Encode(byte[] encodedData, int width, ByteBuffer buffer)
+        internal static void Encode(AmqpSymbol value, FormatCode formatCode, ByteBuffer buffer)
         {
-            if (width == FixedWidth.UByte)
+            AmqpBitConverter.WriteUByte(buffer, formatCode);
+            EncodeValue(value, formatCode, buffer);
+        }
+
+        internal static void EncodeValue(AmqpSymbol value, FormatCode formatCode, ByteBuffer buffer)
+        {
+            int len = value.Value.Length;
+            if (formatCode == FormatCode.Symbol8)
             {
-                AmqpBitConverter.WriteUByte(buffer, (byte)encodedData.Length);
+                AmqpBitConverter.WriteUByte(buffer, (byte)len);
             }
             else
             {
-                AmqpBitConverter.WriteUInt(buffer, (uint)encodedData.Length);
+                AmqpBitConverter.WriteUInt(buffer, (uint)len);
             }
 
-            AmqpBitConverter.WriteBytes(buffer, encodedData, 0, encodedData.Length);
+            buffer.Validate(write: true, len);
+            int bytes = Encoding.ASCII.GetBytes(value.Value, 0, len, buffer.Buffer, buffer.WritePos);
+            if (bytes != len)
+            {
+                throw new AmqpException(new Error()
+                {
+                    Condition = AmqpErrorCode.InternalError,
+                    Description = "Symbol encoded byte count not equal to its length."
+                });
+            }
+
+            buffer.Append(len);
         }
     }
 }

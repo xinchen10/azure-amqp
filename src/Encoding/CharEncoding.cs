@@ -22,7 +22,7 @@ namespace Microsoft.Azure.Amqp.Encoding
             if (value.HasValue)
             {
                 AmqpBitConverter.WriteUByte(buffer, FormatCode.Char);
-                AmqpBitConverter.WriteInt(buffer, char.ConvertToUtf32(new string(value.Value, 1), 0));
+                AmqpBitConverter.WriteChar(buffer, value.Value);
             }
             else
             {
@@ -37,14 +37,7 @@ namespace Microsoft.Azure.Amqp.Encoding
                 return null;
             }
 
-            int intValue = AmqpBitConverter.ReadInt(buffer);
-            string value = char.ConvertFromUtf32(intValue);
-            if (value.Length > 1)
-            {
-                throw new ArgumentOutOfRangeException(CommonResources.ErrorConvertingToChar);
-            }
-
-            return value[0];
+            return AmqpBitConverter.ReadChar(buffer);
         }
 
         public override int GetObjectEncodeSize(object value, bool arrayEncoding)

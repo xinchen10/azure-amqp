@@ -84,6 +84,8 @@ namespace Microsoft.Azure.Amqp.Encoding
                 { FormatCode.SmallLong,     longEncoding },
                 { FormatCode.Float,         floatEncoding },
                 { FormatCode.Double,        doubleEncoding },
+                { FormatCode.Decimal32,     decimal128Encoding },
+                { FormatCode.Decimal64,     decimal128Encoding },
                 { FormatCode.Decimal128,    decimal128Encoding },
                 { FormatCode.Char,          charEncoding },
                 { FormatCode.TimeStamp,     timeStampEncoding },
